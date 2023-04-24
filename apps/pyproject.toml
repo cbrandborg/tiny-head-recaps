@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "tiny-head-recaps"
+version = "0.1.0"
+description = ""
+authors = ["Christian <cbrandborg@protonmail.com>"]
+readme = "README.md"
+packages = [{include = "gpt_recap_dummy"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+openai = "^0.27.2"
+requests = "^2.28.2"
+future = "^0.18.3"
+google-cloud-texttospeech= "^2.14.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

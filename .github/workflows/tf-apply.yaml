@@ -1,0 +1,98 @@
+
+name: "init infra"
+
+on: 
+  workflow_dispatch
+
+
+
+
+
+  # pull_request:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'src/**'
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #   - 'infra/**'
+
+  
+
+env:
+  LOCATION: europe-north1
+  PROJECT_ID: prj-tiny-head-dummy
+  PROJECT_NUM: 914486098620
+  SERVICE_ACCOUNT: sa-tiny-head-recaps-tf@prj-tiny-head-dummy.iam.gserviceaccount.com
+  WORKLOAD_IDENTITY_POOL: wl-pool-tinyhead-recaps
+  WL_PROVIDER: tinyhead-github-provider
+  APP-VERSION: ${{ github.run_id }}
+
+permissions: write-all
+
+jobs:
+  apply-tf:
+    name: Validating and deploying infrastructure to Google Cloud using Terraform
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./infra
+
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - id: "gcloud-auth"
+        name: "Authenticate to Google Cloud"
+        uses: "google-github-actions/auth@v1.0.0"
+        with:
+          workload_identity_provider: "projects/${{ env.PROJECT_NUM }}/locations/global/workloadIdentityPools/${{ env.WORKLOAD_IDENTITY_POOL }}/providers/${{ env.WL_PROVIDER }}"
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+
+      # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+  
+      # Checks which files that should be rewritten to Terraform canonical style and format for configuration files - If triggered run terraform fmt locally and commit affected files
+      - name: Terraform Format
+        run: terraform fmt
+  
+      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+      - name: Terraform Init
+        run: terraform init --upgrade=true
+  
+      # Validates the syntax of the Terraform configuration files
+      - name: Terraform Validate
+        run: terraform validate
+
+      # Generates an execution plan for Terraform
+      - name: Terraform Plan
+        run: |
+          terraform plan -input=false \
+              -var "project_id=${{ secrets.TF_PROJECT_ID }}" \
+              -var "billing_account=${{ secrets.TF_BILLING_ACCOUNT }}" \
+              -var "bkt-sa=${{ secrets.TF_BKT_SA }}" \
+              -var "location=${{ secrets.TF_LOCATION }}" \
+              -var "terraform_sa=${{ secrets.TF_TERRAFORM_SA }}" \
+              -var "bkt-outputs=${{ secrets.TF_OUTPUT_BKT }}"
+
+
+      # Applies execution plan for Terraform
+      - name: Terraform Apply  
+        if: github.ref == 'refs/heads/main'
+        run: |
+          terraform apply -auto-approve \
+              -var "project_id=${{ secrets.TF_PROJECT_ID }}" \
+              -var "billing_account=${{ secrets.TF_BILLING_ACCOUNT }}" \
+              -var "bkt-sa=${{ secrets.TF_BKT_SA }}" \
+              -var "location=${{ secrets.TF_LOCATION }}" \
+              -var "terraform_sa=${{ secrets.TF_TERRAFORM_SA }}" \
+              -var "bkt-outputs=${{ secrets.TF_OUTPUT_BKT }}"

@@ -1,0 +1,4 @@
+.virenv
+/audio/*
+.env
+__pycache__
